@@ -50,19 +50,21 @@ namespace FiscalM_AImport
                 // When running the compiled exe, place the files next to it or run from that folder.
                 var baseDir = Directory.GetCurrentDirectory();
 
+                int fieldNamesRow = settings.Import.FieldNamesRow;
+
                 if (settings.Import.ImportLead)
                 {
-                    RunImporter(new LeadImporter(serviceClient, baseDir, settings.Import.LeadExcelFile));
+                    RunImporter(new LeadImporter(serviceClient, baseDir, settings.Import.LeadExcelFile, fieldNamesRow));
                 }
 
                 if (settings.Import.ImportContact)
                 {
-                    RunImporter(new ContactImporter(serviceClient, baseDir, settings.Import.ContactExcelFile));
+                    RunImporter(new ContactImporter(serviceClient, baseDir, settings.Import.ContactExcelFile, fieldNamesRow));
                 }
 
                 if (settings.Import.ImportAccount)
                 {
-                    RunImporter(new AccountImporter(serviceClient, baseDir, settings.Import.AccountExcelFile));
+                    RunImporter(new AccountImporter(serviceClient, baseDir, settings.Import.AccountExcelFile, fieldNamesRow));
                 }
 
                 Console.WriteLine("All imports completed.");

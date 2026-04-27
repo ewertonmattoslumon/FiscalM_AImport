@@ -6,8 +6,8 @@ namespace FiscalM_AImport.Importers
     {
         protected override string EntityLogicalName => "lead";
 
-        public LeadImporter(ServiceClient serviceClient, string baseDir, string excelFileName)
-            : base(serviceClient, baseDir, excelFileName)
+        public LeadImporter(ServiceClient serviceClient, string baseDir, string excelFileName, int fieldNamesRow)
+            : base(serviceClient, baseDir, excelFileName, fieldNamesRow)
         {
         }
     }

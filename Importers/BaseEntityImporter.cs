@@ -17,16 +17,18 @@ namespace FiscalM_AImport.Importers
         protected readonly ServiceClient _serviceClient;
         protected readonly string _baseDir;
         protected readonly string _excelFileName;
+        protected readonly int _fieldNamesRow;
 
         protected abstract string EntityLogicalName { get; }
 
         private Dictionary<string, AttributeMetadata>? _attributeMetadata;
 
-        protected BaseEntityImporter(ServiceClient serviceClient, string baseDir, string excelFileName)
+        protected BaseEntityImporter(ServiceClient serviceClient, string baseDir, string excelFileName, int fieldNamesRow)
         {
             _serviceClient = serviceClient;
             _baseDir = baseDir;
             _excelFileName = excelFileName;
+            _fieldNamesRow = fieldNamesRow;
         }
 
         public void Import()
@@ -51,19 +53,19 @@ namespace FiscalM_AImport.Importers
             int lastCol = worksheet.LastColumnUsed()?.ColumnNumber() ?? 0;
             int lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 0;
 
-            if (lastCol == 0 || lastRow < 2)
+            if (lastCol == 0 || lastRow < _fieldNamesRow)
             {
-                Console.WriteLine($"[{EntityLogicalName}] Sheet must have at least 2 rows (row 1: display names, row 2: logical field names).");
+                Console.WriteLine($"[{EntityLogicalName}] Sheet must have at least {_fieldNamesRow} rows (field names expected in row {_fieldNamesRow}).");
                 return;
             }
 
-            // Build column → logical field name mapping from row 2
+            // Build column → logical field name mapping from the configured row
             var columnMap = new Dictionary<int, string>(lastCol);
             int generatedIdCol = 0;
 
             for (int col = 1; col <= lastCol; col++)
             {
-                var fieldName = worksheet.Cell(2, col).GetString().Trim();
+                var fieldName = worksheet.Cell(_fieldNamesRow, col).GetString().Trim();
                 if (string.IsNullOrWhiteSpace(fieldName))
                     continue;
 
@@ -77,8 +79,9 @@ namespace FiscalM_AImport.Importers
             if (generatedIdCol == 0)
             {
                 generatedIdCol = lastCol + 1;
-                worksheet.Cell(1, generatedIdCol).Value = "Generated ID";
-                worksheet.Cell(2, generatedIdCol).Value = GeneratedIdFieldName;
+                if (_fieldNamesRow > 1)
+                    worksheet.Cell(_fieldNamesRow - 1, generatedIdCol).Value = "Generated ID";
+                worksheet.Cell(_fieldNamesRow, generatedIdCol).Value = GeneratedIdFieldName;
                 columnMap[generatedIdCol] = GeneratedIdFieldName;
                 lastCol = generatedIdCol;
                 workbook.Save();
@@ -90,7 +93,7 @@ namespace FiscalM_AImport.Importers
 
             int imported = 0, skipped = 0, errors = 0;
 
-            for (int row = 3; row <= lastRow; row++)
+            for (int row = _fieldNamesRow + 1; row <= lastRow; row++)
             {
                 // Skip rows already imported
                 var existingId = worksheet.Cell(row, generatedIdCol).GetString();

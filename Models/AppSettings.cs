@@ -16,6 +16,7 @@ namespace FiscalM_AImport.Models
         public bool ImportLead { get; set; }
         public bool ImportContact { get; set; }
         public bool ImportAccount { get; set; }
+        public int FieldNamesRow { get; set; } = 2;
         public string LeadExcelFile { get; set; } = "leads.xlsx";
         public string ContactExcelFile { get; set; } = "contacts.xlsx";
         public string AccountExcelFile { get; set; } = "accounts.xlsx";

@@ -6,8 +6,8 @@ namespace FiscalM_AImport.Importers
     {
         protected override string EntityLogicalName => "contact";
 
-        public ContactImporter(ServiceClient serviceClient, string baseDir, string excelFileName)
-            : base(serviceClient, baseDir, excelFileName)
+        public ContactImporter(ServiceClient serviceClient, string baseDir, string excelFileName, int fieldNamesRow)
+            : base(serviceClient, baseDir, excelFileName, fieldNamesRow)
         {
         }
     }
