@@ -50,39 +50,23 @@ namespace FiscalM_AImport
                 // When running the compiled exe, place the files next to it or run from that folder.
                 var baseDir = Directory.GetCurrentDirectory();
 
-                int fieldNamesRow = settings.Import.FieldNamesRow;
+                var importer = new TripleImporter(
+                    serviceClient,
+                    baseDir,
+                    settings.Import.ExcelFile,
+                    settings.Import.FieldNamesRow);
 
-                if (settings.Import.ImportLead)
+                try
                 {
-                    RunImporter(new LeadImporter(serviceClient, baseDir, settings.Import.LeadExcelFile, fieldNamesRow));
+                    importer.Import();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Unexpected error during import: {ex.Message}");
                 }
 
-                if (settings.Import.ImportContact)
-                {
-                    RunImporter(new ContactImporter(serviceClient, baseDir, settings.Import.ContactExcelFile, fieldNamesRow));
-                }
-
-                if (settings.Import.ImportAccount)
-                {
-                    RunImporter(new AccountImporter(serviceClient, baseDir, settings.Import.AccountExcelFile, fieldNamesRow));
-                }
-
-                Console.WriteLine("All imports completed.");
+                Console.WriteLine("Import completed.");
             }
-        }
-
-        private static void RunImporter(IEntityImporter importer)
-        {
-            try
-            {
-                importer.Import();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Unexpected error during import: {ex.Message}");
-            }
-
-            Console.WriteLine();
         }
     }
 }
