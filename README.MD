@@ -1,19 +1,5 @@
 # Fiscal M&A Importer (Lead, Contact and Account)
 
-## Project Structure
-FiscalM_AImport/
-├── FiscalM_AImport.csproj
-├── appsettings.json
-├── Program.cs
-├── Models/
-│   └── AppSettings.cs
-└── Importers/
-    ├── IEntityImporter.cs
-    ├── BaseEntityImporter.cs   ← all the import logic lives here
-    ├── LeadImporter.cs
-    ├── ContactImporter.cs
-    └── AccountImporter.cs
-
 ## Key design decisions:
 
 - Bypass automation — every CreateRequest carries BypassCustomPluginExecution = true (blocks plugins and classic workflows) and SuppressCallbackRegistrationExpanderJob = true (blocks Power Automate). Your user must have the prvBypassCustomPlugins privilege in Dynamics 365.
