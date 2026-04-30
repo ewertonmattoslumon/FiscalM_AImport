@@ -24,6 +24,9 @@
     <None Update="appsettings.local.json" Condition="Exists('appsettings.local.json')">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="ImportSmallBatchForTest.xlsx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
