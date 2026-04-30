@@ -14,6 +14,7 @@ namespace FiscalM_AImport
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+                .AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: false)
                 .Build();
 
             var settings = config.Get<AppSettings>()
