@@ -91,7 +91,7 @@ namespace FiscalM_AImport.Importers
                 }
             }
 
-            // ── Add missing tracking columns ──────────────────────────────────────────
+            // ── Add missing tracking columns (adjusts to zero based array index) ─────────────
             int displayRow = _fieldNamesRow > 1 ? _fieldNamesRow - 1 : 0;
 
             if (generatedLeadIdCol == 0)
