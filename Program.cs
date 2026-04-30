@@ -23,7 +23,7 @@ namespace FiscalM_AImport
             Console.WriteLine("FiscalM AImport - Dynamics 365 Excel Importer");
             Console.WriteLine("==============================================");
             Console.WriteLine();
-
+            //test
             ServiceClient serviceClient;
             try
             {
