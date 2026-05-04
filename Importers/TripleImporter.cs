@@ -314,6 +314,7 @@ namespace FiscalM_AImport.Importers
         {
             var req = new CreateRequest { Target = entity };
             req.Parameters["BypassCustomPluginExecution"]          = true;
+            req.Parameters["ByPassBusinessLogicExecution"]        = true;
             req.Parameters["SuppressCallbackRegistrationExpanderJob"] = true;
             return req;
         }
