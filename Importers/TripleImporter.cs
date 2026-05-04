@@ -149,6 +149,8 @@ namespace FiscalM_AImport.Importers
 
                 bool leadFailed = false, contactFailed = false, accountFailed = false;
                 Guid leadId = Guid.Empty;
+                Guid contactId = Guid.Empty;
+                Guid accountId = Guid.Empty;
 
                 // ── 1. LEAD ───────────────────────────────────────────────────────────
                 if (!string.IsNullOrWhiteSpace(existingLeadId))
@@ -204,10 +206,11 @@ namespace FiscalM_AImport.Importers
                     try
                     {
                         var entity = BuildEntity(ContactEntity, "Contact", contactMeta, columns, row, worksheet, secondContactCol);
-                        entity["chl_leadori"] = new EntityReference(LeadEntity, leadId);
+                        entity["originatingleadid"] = new EntityReference(LeadEntity, leadId);
+                        entity["chl_leadori"] = leadId.ToString();
 
                         var resp = (CreateResponse)_serviceClient.Execute(BypassRequest(entity));
-                        var contactId = resp.id;
+                        contactId = resp.id;
 
                         worksheet.Cell(row, generatedContactIdCol).Value = contactId.ToString();
                         TrySave(workbook, row, "Contact");
@@ -234,14 +237,29 @@ namespace FiscalM_AImport.Importers
                         entity["originatingleadid"] = new EntityReference(LeadEntity, leadId);
 
                         // TODO: Create the relationship of the Account with the Primary Contact
-                        // entity["primarycontactid"] = new EntityReference(ContactEntity, existingContactId????);
+                        entity["primarycontactid"] = new EntityReference(ContactEntity, contactId);
 
                         var resp = (CreateResponse)_serviceClient.Execute(BypassRequest(entity));
-                        var accountId = resp.id;
+                        accountId = resp.id;
 
                         worksheet.Cell(row, generatedAccountIdCol).Value = accountId.ToString();
                         TrySave(workbook, row, "Account");
                         Console.WriteLine($"  Row {row} Account created: {accountId}");
+                        
+                        
+                        //Update Lead with Account reference
+                        Entity leadtoUpdate = new Entity(LeadEntity, leadId);
+                        leadtoUpdate["parentaccountid"] = new EntityReference(AccountEntity, accountId);
+                        leadtoUpdate["parentcontactid"] = new EntityReference(ContactEntity, contactId);
+
+
+                        var contactUpdateRet = (UpdateResponse)_serviceClient.Execute(BypassUpdateRequest(leadtoUpdate));
+
+                        //parentcontactid
+                        Entity contactToUpdate = new Entity(ContactEntity, contactId);
+                        contactToUpdate["chl_parentaccountid"] = new EntityReference(AccountEntity, accountId);
+                        var accountUpdateRet = (UpdateResponse)_serviceClient.Execute(BypassUpdateRequest(contactToUpdate));
+
                     }
                     catch (Exception ex)
                     {
@@ -318,6 +336,16 @@ namespace FiscalM_AImport.Importers
             req.Parameters["SuppressCallbackRegistrationExpanderJob"] = true;
             return req;
         }
+
+        private static UpdateRequest BypassUpdateRequest(Entity entity)
+        {
+            var req = new UpdateRequest { Target = entity };
+            req.Parameters["BypassCustomPluginExecution"] = true;
+            req.Parameters["BypassBusinessLogicExecution"] = "CustomSync,CustomAsync";
+            req.Parameters["SuppressCallbackRegistrationExpanderJob"] = true;
+            return req;
+        }
+
 
         private static void TrySave(XLWorkbook workbook, int row, string context)
         {
