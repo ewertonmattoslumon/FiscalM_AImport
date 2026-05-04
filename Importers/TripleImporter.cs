@@ -233,6 +233,9 @@ namespace FiscalM_AImport.Importers
                         var entity = BuildEntity(AccountEntity, "Account", accountMeta, columns, row, worksheet, secondContactCol);
                         entity["originatingleadid"] = new EntityReference(LeadEntity, leadId);
 
+                        // TODO: Create the relationship of the Account with the Primary Contact
+                        // entity["primarycontactid"] = new EntityReference(ContactEntity, existingContactId????);
+
                         var resp = (CreateResponse)_serviceClient.Execute(BypassRequest(entity));
                         var accountId = resp.id;
 
@@ -246,6 +249,17 @@ namespace FiscalM_AImport.Importers
                         accountFailed = true;
                     }
                 }
+
+
+                // ── 4 contact.chl_parentaccountid ────────────────────────────────────────────────────────── 
+                // TODO:  Update the contact. Set the contact.chl_parentaccountid with the ID of the Account created above. 
+
+
+                // ── 5 lead.parentaccountid ────────────────────────────────────────────────────────── 
+                // TODO:  Update the parentaccountid on the lead after creating the account.
+
+
+
 
                 if (contactFailed || accountFailed)
                     errors++;
@@ -288,7 +302,7 @@ namespace FiscalM_AImport.Importers
 
                 var typed = ConvertValue(cell, attrMeta, row, entityPrefix);
                 if (typed != null)
-                    entity[col.FieldName] = typed;
+                    entity[col.FieldName.ToLower()] = typed;
             }
 
             return entity;
