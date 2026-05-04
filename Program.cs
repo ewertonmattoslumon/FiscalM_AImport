@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using FiscalM_AImport.Importers;
 using FiscalM_AImport.Models;
 using Microsoft.Extensions.Configuration;
@@ -43,7 +44,20 @@ namespace FiscalM_AImport
                     return;
                 }
 
-                Console.WriteLine("Connected to Dynamics 365 successfully.");
+                var url = settings.Dataverse.ConnectionString
+                    .Split(';')
+                    .Select(p => p.Trim())
+                    .FirstOrDefault(p => p.StartsWith("Url=", StringComparison.OrdinalIgnoreCase))
+                    ?.Substring(4) ?? "(unknown)";
+
+                Console.WriteLine($"Connected to: {url}");
+                Console.Write("Proceed with import? (Y/N): ");
+                var answer = Console.ReadLine()?.Trim();
+                if (!string.Equals(answer, "Y", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine("Import aborted.");
+                    return;
+                }
                 Console.WriteLine();
 
                 // Excel files are expected in the current working directory.
