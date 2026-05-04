@@ -313,8 +313,8 @@ namespace FiscalM_AImport.Importers
         private static CreateRequest BypassRequest(Entity entity)
         {
             var req = new CreateRequest { Target = entity };
-            req.Parameters["BypassCustomPluginExecution"]          = true;
-            req.Parameters["ByPassBusinessLogicExecution"]        = true;
+            req.Parameters["BypassCustomPluginExecution"]             = true;
+            req.Parameters["BypassBusinessLogicExecution"]            = "CustomSync,CustomAsync";
             req.Parameters["SuppressCallbackRegistrationExpanderJob"] = true;
             return req;
         }

@@ -3,7 +3,8 @@
     "allow": [
       "Bash(dotnet restore *)",
       "Bash(dotnet build *)",
-      "Bash(code .)"
+      "Bash(code .)",
+      "mcp__claude_ai_Microsoft_Learn__microsoft_docs_search"
     ]
   }
 }
