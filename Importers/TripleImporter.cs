@@ -269,16 +269,6 @@ namespace FiscalM_AImport.Importers
                 }
 
 
-                // ── 4 contact.chl_parentaccountid ────────────────────────────────────────────────────────── 
-                // TODO:  Update the contact. Set the contact.chl_parentaccountid with the ID of the Account created above. 
-
-
-                // ── 5 lead.parentaccountid ────────────────────────────────────────────────────────── 
-                // TODO:  Update the parentaccountid on the lead after creating the account.
-
-
-
-
                 if (contactFailed || accountFailed)
                     errors++;
                 else
