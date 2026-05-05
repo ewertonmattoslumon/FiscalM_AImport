@@ -1,23 +1,26 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
 using ClosedXML.Excel;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
+using Microsoft.Xrm.Sdk.Query;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 
 namespace FiscalM_AImport.Importers
 {
     public class TripleImporter
     {
-        private const string LeadEntity    = "lead";
+        private const string LeadEntity = "lead";
         private const string ContactEntity = "contact";
         private const string AccountEntity = "account";
+        private Guid _bpfStageId = Guid.Empty;
+        private Dictionary<string, Guid> _bpfStages = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
 
-        private const string ColGeneratedLeadId    = "GeneratedLeadId";
+        private const string ColGeneratedLeadId = "GeneratedLeadId";
         private const string ColGeneratedContactId = "GeneratedContactId";
         private const string ColGeneratedAccountId = "GeneratedAccountId";
 
@@ -29,7 +32,7 @@ namespace FiscalM_AImport.Importers
         public TripleImporter(ServiceClient serviceClient, string baseDir, string excelFileName, int fieldNamesRow)
         {
             _serviceClient = serviceClient;
-            _baseDir       = baseDir;
+            _baseDir = baseDir;
             _excelFileName = excelFileName;
             _fieldNamesRow = fieldNamesRow;
         }
@@ -44,8 +47,11 @@ namespace FiscalM_AImport.Importers
                 return;
             }
 
+            _bpfStages = LoadBpfStages("Lead BPF - Private");
+            var bpfEntityName = "chl_leadbpfprivate";
+
             Console.WriteLine("Loading entity metadata...");
-            var leadMeta    = LoadMetadata(LeadEntity);
+            var leadMeta = LoadMetadata(LeadEntity);
             var contactMeta = LoadMetadata(ContactEntity);
             var accountMeta = LoadMetadata(AccountEntity);
             Console.WriteLine();
@@ -72,10 +78,10 @@ namespace FiscalM_AImport.Importers
                     columns.Add(ParseColumn(col, rawName));
             }
 
-            int generatedLeadIdCol    = columns.FirstOrDefault(c => c.Role == ColumnRole.GeneratedLeadId)?.Index    ?? 0;
+            int generatedLeadIdCol = columns.FirstOrDefault(c => c.Role == ColumnRole.GeneratedLeadId)?.Index ?? 0;
             int generatedContactIdCol = columns.FirstOrDefault(c => c.Role == ColumnRole.GeneratedContactId)?.Index ?? 0;
             int generatedAccountIdCol = columns.FirstOrDefault(c => c.Role == ColumnRole.GeneratedAccountId)?.Index ?? 0;
-            int secondContactCol      = columns.FirstOrDefault(c => c.Role == ColumnRole.SecondContact)?.Index      ?? 0;
+            int secondContactCol = columns.FirstOrDefault(c => c.Role == ColumnRole.SecondContact)?.Index ?? 0;
 
             // If "Second Contact" column wasn't found via logical name, scan the display-names row
             if (secondContactCol == 0 && _fieldNamesRow > 1)
@@ -129,7 +135,7 @@ namespace FiscalM_AImport.Importers
 
             for (int row = _fieldNamesRow + 1; row <= lastRow; row++)
             {
-                var existingLeadId    = worksheet.Cell(row, generatedLeadIdCol).GetString();
+                var existingLeadId = worksheet.Cell(row, generatedLeadIdCol).GetString();
                 var existingContactId = worksheet.Cell(row, generatedContactIdCol).GetString();
                 var existingAccountId = worksheet.Cell(row, generatedAccountIdCol).GetString();
 
@@ -172,9 +178,13 @@ namespace FiscalM_AImport.Importers
                         var resp = (CreateResponse)_serviceClient.Execute(BypassRequest(entity));
                         leadId = resp.id;
 
+                        SetLeadBpfStage(leadId, bpfEntityName, ((OptionSetValue)(entity["statuscode"])).Value);
+
                         worksheet.Cell(row, generatedLeadIdCol).Value = leadId.ToString();
                         TrySave(workbook, row, "Lead");
                         Console.WriteLine($"  Row {row} Lead    created: {leadId}");
+
+
                     }
                     catch (Exception ex)
                     {
@@ -245,8 +255,8 @@ namespace FiscalM_AImport.Importers
                         worksheet.Cell(row, generatedAccountIdCol).Value = accountId.ToString();
                         TrySave(workbook, row, "Account");
                         Console.WriteLine($"  Row {row} Account created: {accountId}");
-                        
-                        
+
+
                         //Update Lead with Account reference
                         Entity leadtoUpdate = new Entity(LeadEntity, leadId);
                         leadtoUpdate["parentaccountid"] = new EntityReference(AccountEntity, accountId);
@@ -292,7 +302,7 @@ namespace FiscalM_AImport.Importers
             foreach (var col in columns)
             {
                 if (col.Role != ColumnRole.Normal) continue;
-                if (col.Index == secondContactCol)  continue;
+                if (col.Index == secondContactCol) continue;
 
                 // Include shared columns (no prefix) or those explicitly for this entity
                 bool include = col.EntityPrefix == null ||
@@ -321,8 +331,8 @@ namespace FiscalM_AImport.Importers
         private static CreateRequest BypassRequest(Entity entity)
         {
             var req = new CreateRequest { Target = entity };
-            req.Parameters["BypassCustomPluginExecution"]             = true;
-            req.Parameters["BypassBusinessLogicExecution"]            = "CustomSync,CustomAsync";
+            req.Parameters["BypassCustomPluginExecution"] = true;
+            req.Parameters["BypassBusinessLogicExecution"] = "CustomSync,CustomAsync";
             req.Parameters["SuppressCallbackRegistrationExpanderJob"] = true;
             return req;
         }
@@ -349,7 +359,7 @@ namespace FiscalM_AImport.Importers
         private Dictionary<string, AttributeMetadata> LoadMetadata(string entityName)
         {
             Console.WriteLine($"  Loading metadata for '{entityName}'...");
-            var req  = new RetrieveEntityRequest { EntityFilters = EntityFilters.Attributes, LogicalName = entityName };
+            var req = new RetrieveEntityRequest { EntityFilters = EntityFilters.Attributes, LogicalName = entityName };
             var resp = (RetrieveEntityResponse)_serviceClient.Execute(req);
 
             var dict = new Dictionary<string, AttributeMetadata>(StringComparer.OrdinalIgnoreCase);
@@ -362,11 +372,11 @@ namespace FiscalM_AImport.Importers
 
         private static ColumnDef ParseColumn(int index, string rawName)
         {
-            if (string.Equals(rawName, ColGeneratedLeadId,    StringComparison.OrdinalIgnoreCase)) return new ColumnDef(index, rawName, null, rawName, ColumnRole.GeneratedLeadId);
+            if (string.Equals(rawName, ColGeneratedLeadId, StringComparison.OrdinalIgnoreCase)) return new ColumnDef(index, rawName, null, rawName, ColumnRole.GeneratedLeadId);
             if (string.Equals(rawName, ColGeneratedContactId, StringComparison.OrdinalIgnoreCase)) return new ColumnDef(index, rawName, null, rawName, ColumnRole.GeneratedContactId);
             if (string.Equals(rawName, ColGeneratedAccountId, StringComparison.OrdinalIgnoreCase)) return new ColumnDef(index, rawName, null, rawName, ColumnRole.GeneratedAccountId);
 
-            if (string.Equals(rawName, "secondcontact",  StringComparison.OrdinalIgnoreCase) ||
+            if (string.Equals(rawName, "secondcontact", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(rawName, "second_contact", StringComparison.OrdinalIgnoreCase))
                 return new ColumnDef(index, rawName, null, rawName, ColumnRole.SecondContact);
 
@@ -374,7 +384,7 @@ namespace FiscalM_AImport.Importers
             if (dot > 0 && dot < rawName.Length - 1)
             {
                 var prefix = rawName.Substring(0, dot);
-                var field  = rawName.Substring(dot + 1);
+                var field = rawName.Substring(dot + 1);
                 return new ColumnDef(index, rawName, prefix, field, ColumnRole.Normal);
             }
 
@@ -434,7 +444,7 @@ namespace FiscalM_AImport.Importers
 
                     case AttributeTypeCode.DateTime:
                         if (cell.Type == XLDataType.DateTime) return cell.GetDateTime();
-                        if (cell.Type == XLDataType.Number)   return DateTime.FromOADate(cell.GetNumber());
+                        if (cell.Type == XLDataType.Number) return DateTime.FromOADate(cell.GetNumber());
                         return DateTime.ParseExact(str, formats, CultureInfo.InvariantCulture, DateTimeStyles.None);
 
                     case AttributeTypeCode.Picklist:
@@ -467,14 +477,80 @@ namespace FiscalM_AImport.Importers
             }
         }
 
+        private Dictionary<string, Guid> LoadBpfStages(string processName)
+        {
+            Console.WriteLine($"  Loading BPF stages for '{processName}'...");
+
+            var processQuery = new QueryExpression("workflow")
+            {
+                ColumnSet = new ColumnSet("workflowid"),
+                Criteria = new FilterExpression()
+            };
+            processQuery.Criteria.AddCondition("name", ConditionOperator.Equal, processName);
+            processQuery.Criteria.AddCondition("category", ConditionOperator.Equal, 4); // 4 = BPF
+
+            var process = _serviceClient.RetrieveMultiple(processQuery).Entities.FirstOrDefault()
+                ?? throw new Exception($"BPF process '{processName}' not found.");
+
+            var stageQuery = new QueryExpression("processstage")
+            {
+                ColumnSet = new ColumnSet("processstageid", "stagename"),
+                Criteria = new FilterExpression()
+            };
+            stageQuery.Criteria.AddCondition("processid", ConditionOperator.Equal, process.Id);
+
+            var stages = _serviceClient.RetrieveMultiple(stageQuery).Entities;
+
+            var dict = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+            foreach (var stage in stages)
+                dict[stage.GetAttributeValue<string>("stagename")] = stage.Id;
+
+            Console.WriteLine($"  Loaded {dict.Count} BPF stage(s): {string.Join(", ", dict.Keys)}");
+            return dict;
+        }
+
+
+        private void SetLeadBpfStage(Guid leadId, string bpfEntityLogicalName, int statusCode)
+        {
+            var stageName = statusCode switch
+            {
+                3 => "Onboarded",
+                126670024 => "Open",
+                126670049 => "Registration",
+                126670060 => "KYC",
+                _ => null
+            };
+
+            if (stageName == null)
+            {
+                Console.WriteLine($"  BPF: no stage mapped for statuscode {statusCode} — skipped.");
+                return;
+            }
+
+            if (!_bpfStages.TryGetValue(stageName, out var stageId))
+            {
+                Console.WriteLine($"  BPF: stage '{stageName}' not found in loaded stages — skipped.");
+                return;
+            }
+
+            var bpf = new Entity(bpfEntityLogicalName);
+            bpf["bpf_leadid"] = new EntityReference(LeadEntity, leadId);
+            bpf["activestageid"] = new EntityReference("processstage", stageId);
+
+            _serviceClient.Create(bpf);
+            Console.WriteLine($"  BPF instance created for Lead {leadId} at stage '{stageName}' ({stageId})");
+        }
+
+
+
         private static string CellToString(XLCellValue v) => v.Type switch
         {
-            XLDataType.Text     => v.GetText(),
-            XLDataType.Number   => v.GetNumber().ToString(CultureInfo.InvariantCulture),
-            XLDataType.Boolean  => v.GetBoolean().ToString(),
+            XLDataType.Text => v.GetText(),
+            XLDataType.Number => v.GetNumber().ToString(CultureInfo.InvariantCulture),
+            XLDataType.Boolean => v.GetBoolean().ToString(),
             XLDataType.DateTime => v.GetDateTime().ToString("o", CultureInfo.InvariantCulture),
             XLDataType.TimeSpan => v.GetTimeSpan().ToString(),
-            _                   => string.Empty
+            _ => string.Empty
         };
 
         // ── Column model ──────────────────────────────────────────────────────────────
@@ -490,19 +566,19 @@ namespace FiscalM_AImport.Importers
 
         private class ColumnDef
         {
-            public int        Index        { get; }
-            public string     RawName      { get; }
-            public string?    EntityPrefix { get; }   // null = shared across all entities
-            public string     FieldName    { get; }   // logical name without the entity prefix
-            public ColumnRole Role         { get; }
+            public int Index { get; }
+            public string RawName { get; }
+            public string? EntityPrefix { get; }   // null = shared across all entities
+            public string FieldName { get; }   // logical name without the entity prefix
+            public ColumnRole Role { get; }
 
             public ColumnDef(int index, string rawName, string? entityPrefix, string fieldName, ColumnRole role)
             {
-                Index        = index;
-                RawName      = rawName;
+                Index = index;
+                RawName = rawName;
                 EntityPrefix = entityPrefix;
-                FieldName    = fieldName;
-                Role         = role;
+                FieldName = fieldName;
+                Role = role;
             }
         }
     }
