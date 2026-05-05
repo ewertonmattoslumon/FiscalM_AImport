@@ -396,7 +396,7 @@ namespace FiscalM_AImport.Importers
         private static object? ConvertValue(XLCellValue cell, AttributeMetadata attrMeta, int row, string entityName)
         {
             if (cell.IsBlank) return null;
-
+            var formats = new[] { "d/M/yyyy", "dd/MM/yyyy", "d/MM/yyyy", "dd/M/yyyy" };
             var str = CellToString(cell);
             if (string.IsNullOrWhiteSpace(str)) return null;
 
@@ -445,7 +445,7 @@ namespace FiscalM_AImport.Importers
                     case AttributeTypeCode.DateTime:
                         if (cell.Type == XLDataType.DateTime) return cell.GetDateTime();
                         if (cell.Type == XLDataType.Number)   return DateTime.FromOADate(cell.GetNumber());
-                        return DateTime.Parse(str, CultureInfo.InvariantCulture);
+                        return DateTime.ParseExact(str, formats, CultureInfo.InvariantCulture, DateTimeStyles.None);
 
                     case AttributeTypeCode.Picklist:
                     case AttributeTypeCode.State:
